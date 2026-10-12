@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0e1016" />
+  <title>Still — Focus timer</title>
+  <style>
+    :root {
+      --ink: #0e1016;
+      --panel: #171b24;
+      --line: #2a3140;
+      --text: #f4eee4;
+      --muted: #c4b8a6;
+      --focus: #e4b56a;
+      --break: #7eb8c9;
+      --danger: #d27a6a;
+      --ring-track: #252b38;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --pad: clamp(1.25rem, 4vw, 2.5rem);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Candara", "Calibri", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 50% -10%, #232838 0%, transparent 58%),
+        var(--ink);
+      display: grid;
+      place-items: center;
+      padding: calc(var(--pad) + env(safe-area-inset-top))
+        calc(var(--pad) + env(safe-area-inset-right))
+        calc(var(--pad) + env(safe-area-inset-bottom))
+        calc(var(--pad) + env(safe-area-inset-left));
+    }
+
+    ::selection {
+      background: color-mix(in srgb, var(--accent, var(--focus)) 55%, #000);
+      color: var(--ink);
+    }
+
+    .app {
+      width: min(100%, 28rem);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.7rem, 4vw, 2.15rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    .lede {
+      margin: 0 0 1.75rem;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .dial {
+      --accent: var(--focus);
+      position: relative;
+      width: min(78vw, 22rem);
+      aspect-ratio: 1;
+      margin: 0 auto 1.5rem;
+      display: grid;
+      place-items: center;
+      filter: drop-shadow(var(--shadow));
+    }
+
+    .dial.is-break {
+      --accent: var(--break);
+    }
+
+    .dial svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .dial .track {
+      fill: var(--panel);
+      stroke: var(--ring-track);
+      stroke-width: 10;
+    }
+
+    .dial .progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-dasharray: var(--c);
+      stroke-dashoffset: var(--offset, 0);
+      transition: stroke 220ms var(--ease);
+    }
+
+    .face {
+      position: absolute;
+      inset: 18%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      pointer-events: none;
+    }
+
+    .time {
+      font-family: "Palatino Linotype", Palatino, "Iowan Old Style", Georgia, serif;
+      font-size: clamp(3.1rem, 12vw, 4.4rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .mode-label {
+      color: var(--accent);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.4rem;
+      padding: 0.35rem;
+      margin: 0 auto 1.25rem;
+      width: min(100%, 18rem);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .modes button {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 0.7rem 0.75rem;
+      min-height: 44px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .modes button[aria-pressed="true"] {
+      background: #222836;
+      color: var(--text);
+    }
+
+    .modes button:hover:not(:disabled) {
+      color: var(--text);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 1fr;
+      gap: 0.55rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 48px;
+      padding: 0.75rem 0.9rem;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background 160ms var(--ease), transform 160ms var(--ease);
+    }
+
+    .btn:hover:not(:disabled) {
+      background: #1f2430;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-start {
+      background: var(--accent, var(--focus));
+      border-color: transparent;
+      color: #16120c;
+    }
+
+    .btn-start:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--accent, var(--focus)) 88%, white);
+    }
+
+    .btn:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent, var(--focus));
+      outline-offset: 3px;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .stats strong {
+      display: block;
+      margin-top: 0.2rem;
+      color: var(--text);
+      font-size: 1.35rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      min-height: 1.4em;
+      margin: 0.9rem 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 420px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .dial .progress,
+      .btn {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Still</h1>
+    <p class="lede">One thing for twenty-five minutes. Then five minutes off.</p>
+
+    <div class="dial" id="dial" data-mode="focus">
+      <svg viewBox="0 0 220 220" aria-hidden="true">
+        <circle class="track" cx="110" cy="110" r="96"></circle>
+        <circle class="progress" id="ring" cx="110" cy="110" r="96"></circle>
+      </svg>
+      <div class="face">
+        <div class="time" id="time" aria-live="polite">25:00</div>
+        <div class="mode-label" id="phase">Focus</div>
+      </div>
+    </div>
+
+    <div class="modes" role="group" aria-label="Session type">
+      <button type="button" id="focusMode" aria-pressed="true">Focus 25</button>
+      <button type="button" id="breakMode" aria-pressed="false">Break 5</button>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="btn btn-start" id="start">Start</button>
+      <button type="button" class="btn" id="pause" disabled>Pause</button>
+      <button type="button" class="btn" id="reset">Reset</button>
+    </div>
+
+    <div class="stats">
+      <div>Completed focus sessions<strong id="completed">0</strong></div>
+      <div>This session<strong id="sessionState">Ready</strong></div>
+    </div>
+    <p class="status" id="status">Press Start when you are ready.</p>
+  </main>
+
+  <script>
+    (function () {
+      const FOCUS_MS = 25 * 60 * 1000;
+      const BREAK_MS = 5 * 60 * 1000;
+      const STORAGE_KEY = "still.completedFocusSessions";
+      const RADIUS = 96;
+      const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+      const dial = document.getElementById("dial");
+      const ring = document.getElementById("ring");
+      const timeEl = document.getElementById("time");
+      const phaseEl = document.getElementById("phase");
+      const completedEl = document.getElementById("completed");
+      const sessionStateEl = document.getElementById("sessionState");
+      const statusEl = document.getElementById("status");
+      const startBtn = document.getElementById("start");
+      const pauseBtn = document.getElementById("pause");
+      const resetBtn = document.getElementById("reset");
+      const focusModeBtn = document.getElementById("focusMode");
+      const breakModeBtn = document.getElementById("breakMode");
+
+      ring.style.setProperty("--c", String(CIRCUMFERENCE));
+
+      const state = {
+        mode: "focus",
+        running: false,
+        remainingMs: FOCUS_MS,
+        endAt: null,
+        tickId: null,
+        notice: "",
+        completed: loadCompleted()
+      };
+
+      function durationFor(mode) {
+        return mode === "break" ? BREAK_MS : FOCUS_MS;
+      }
+
+      function remainingFromEnd(endAt, now) {
+        return Math.max(0, endAt - now);
+      }
+
+      function formatTime(ms) {
+        const totalSeconds = Math.ceil(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+      }
+
+      function loadCompleted() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const value = Number.parseInt(raw, 10);
+        return Number.isFinite(value) && value >= 0 ? value : 0;
+      }
+
+      function saveCompleted() {
+        localStorage.setItem(STORAGE_KEY, String(state.completed));
+      }
+
+      function setProgress() {
+        const total = durationFor(state.mode);
+        const ratio = state.remainingMs / total;
+        const offset = CIRCUMFERENCE * (1 - ratio);
+        ring.style.setProperty("--offset", String(offset));
+      }
+
+      function render() {
+        const isBreak = state.mode === "break";
+        timeEl.textContent = formatTime(state.remainingMs);
+        phaseEl.textContent = isBreak ? "Break" : "Focus";
+        dial.classList.toggle("is-break", isBreak);
+        dial.dataset.mode = state.mode;
+        startBtn.style.setProperty("--accent", isBreak ? "var(--break)" : "var(--focus)");
+        focusModeBtn.setAttribute("aria-pressed", String(!isBreak));
+        breakModeBtn.setAttribute("aria-pressed", String(isBreak));
+        completedEl.textContent = String(state.completed);
+        startBtn.disabled = state.running;
+        pauseBtn.disabled = !state.running;
+        focusModeBtn.disabled = state.running;
+        breakModeBtn.disabled = state.running;
+
+        if (state.running) {
+          sessionStateEl.textContent = "Running";
+          statusEl.textContent = isBreak ? "Rest. The next focus block is waiting." : "Stay with this one thing.";
+        } else if (state.notice) {
+          sessionStateEl.textContent = "Ready";
+          statusEl.textContent = state.notice;
+        } else if (state.remainingMs === durationFor(state.mode)) {
+          sessionStateEl.textContent = "Ready";
+          statusEl.textContent = "Press Start when you are ready.";
+        } else {
+          sessionStateEl.textContent = "Paused";
+          statusEl.textContent = "Paused. Start to continue this session.";
+        }
+
+        document.title = formatTime(state.remainingMs) + " · " + (isBreak ? "Break" : "Focus");
+        setProgress();
+      }
+
+      function tick() {
+        if (!state.running || state.endAt == null) return;
+        state.remainingMs = remainingFromEnd(state.endAt, performance.now());
+        if (state.remainingMs <= 0) {
+          completeSession();
+          return;
+        }
+        render();
+      }
+
+      function completeSession() {
+        stopTicker();
+        state.running = false;
+        state.endAt = null;
+        state.remainingMs = 0;
+
+        if (state.mode === "focus") {
+          state.completed += 1;
+          saveCompleted();
+          state.mode = "break";
+          state.remainingMs = BREAK_MS;
+          state.notice = "Focus complete. Take five minutes.";
+        } else {
+          state.mode = "focus";
+          state.remainingMs = FOCUS_MS;
+          state.notice = "Break over. Start the next focus session.";
+        }
+        render();
+      }
+
+      function startTicker() {
+        stopTicker();
+        state.tickId = setInterval(tick, 200);
+        tick();
+      }
+
+      function stopTicker() {
+        if (state.tickId != null) {
+          clearInterval(state.tickId);
+          state.tickId = null;
+        }
+      }
+
+      function start() {
+        if (state.running) return;
+        if (state.remainingMs <= 0) {
+          state.remainingMs = durationFor(state.mode);
+        }
+        state.notice = "";
+        state.running = true;
+        state.endAt = performance.now() + state.remainingMs;
+        startTicker();
+        render();
+      }
+
+      function pause() {
+        if (!state.running) return;
+        tick();
+        state.running = false;
+        state.endAt = null;
+        stopTicker();
+        render();
+      }
+
+      function reset() {
+        stopTicker();
+        state.running = false;
+        state.endAt = null;
+        state.notice = "";
+        state.remainingMs = durationFor(state.mode);
+        render();
+      }
+
+      function setMode(mode) {
+        if (state.running || state.mode === mode) return;
+        state.mode = mode;
+        state.notice = "";
+        state.remainingMs = durationFor(mode);
+        render();
+      }
+
+      startBtn.addEventListener("click", start);
+      pauseBtn.addEventListener("click", pause);
+      resetBtn.addEventListener("click", reset);
+      focusModeBtn.addEventListener("click", function () { setMode("focus"); });
+      breakModeBtn.addEventListener("click", function () { setMode("break"); });
+
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden && state.running) tick();
+      });
+
+      window.__stillTimer = {
+        remainingFromEnd: remainingFromEnd,
+        formatTime: formatTime,
+        durationFor: durationFor,
+        getState: function () { return state; },
+        start: start,
+        pause: pause,
+        reset: reset,
+        FOCUS_MS: FOCUS_MS,
+        BREAK_MS: BREAK_MS
+      };
+
+      render();
+    })();
+  </script>
+</body>
+</html>
